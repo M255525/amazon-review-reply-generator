@@ -167,6 +167,15 @@
     <label>額外補充（選填，例如已提供的補償方案、物流單號等）</label>
     <textarea id="extra" style="min-height:50px;" placeholder="例：已協助申請全額退款，預計3個工作天入帳"></textarea>
 
+    <div class="row">
+      <div><label>姓名（選填，用於下載練習證明）</label><input type="text" id="idName" maxlength="40" placeholder="例如：王小明"></div>
+      <div><label>學號（選填）</label><input type="text" id="idStudentId" maxlength="30" placeholder="選填"></div>
+    </div>
+    <div class="row">
+      <div><label>系所（選填）</label><input type="text" id="idDept" maxlength="40" placeholder="選填"></div>
+      <div><label>組別（選填）</label><input type="text" id="idGroup" maxlength="30" placeholder="選填"></div>
+    </div>
+
     <div class="examples" id="examples"></div>
 
     <div class="actions">
@@ -185,6 +194,7 @@
     <div class="actions">
       <button class="btn-ghost btn-sm" onclick="copyOutput()">📋 複製</button>
       <button class="btn-ghost btn-sm" onclick="downloadOutput()">⬇ 下載 .txt</button>
+      <button class="btn-ghost btn-sm" onclick="downloadPracticeCertificate()">🎓 下載練習證明（圖檔）</button>
     </div>
 
     <div class="compliance">
@@ -223,7 +233,7 @@
     <ul>
       <li>本工具產出的回覆僅供草稿參考，不保證完全符合 Amazon 當下最新的政策規範，送出前請自行對照 Amazon Seller Central 正式規範逐項確認。</li>
       <li>「合規檢查」只涵蓋常見的高風險類型（以優惠換取評論修改/移除、外部聯絡方式、宣傳用語等），不涵蓋 Amazon 全部政策，未被標示不代表一定合規。</li>
-      <li>請勿在任何欄位輸入真實顧客個資（姓名、地址、訂單號等機敏資訊）——欄位資料只存在你自己瀏覽器的 localStorage，不會上傳到任何伺服器。</li>
+      <li>請勿在任何欄位輸入真實顧客個資（姓名、地址、訂單號等機敏資訊）——欄位資料只存在你自己瀏覽器的 localStorage，不會上傳到任何伺服器；「姓名／學號／系所／組別」為選填欄位，僅用於你自行下載的練習證明圖檔，同樣只存在你的瀏覽器本機。</li>
       <li>填有 API 金鑰時會直接連線到你選擇的服務商，該金鑰只存在你的瀏覽器，本工具不會經手或保存金鑰，也不會向你收取任何 API 費用——實際費用依你與該服務商的方案計算。</li>
       <li>AI 生成內容可能有誤，使用前請自行查證；本工具與創作者不對後續 AI 輸出結果或因此產生的帳號爭議負責。</li>
       <li>僅供教學、課程及個人使用，禁止未經授權公開發布、販售或商業化使用。</li>
@@ -716,6 +726,109 @@ function downloadOutput(){
   a.download = 'amazon-reply.txt';
   a.click();
 }
+
+/* ---------------- 身分資料與練習證明（PNG 圖檔，Canvas 繪製） ---------------- */
+const IDENTITY_KEY = 'amazonReviewReplyIdentity';
+function loadIdentity(){
+  try{ return JSON.parse(localStorage.getItem(IDENTITY_KEY) || '{}'); }catch(e){ return {}; }
+}
+function saveIdentity(){
+  const d = {
+    name: document.getElementById('idName').value,
+    studentId: document.getElementById('idStudentId').value,
+    dept: document.getElementById('idDept').value,
+    group: document.getElementById('idGroup').value
+  };
+  try{ localStorage.setItem(IDENTITY_KEY, JSON.stringify(d)); }catch(e){}
+}
+function restoreIdentity(){
+  const d = loadIdentity();
+  document.getElementById('idName').value = d.name || '';
+  document.getElementById('idStudentId').value = d.studentId || '';
+  document.getElementById('idDept').value = d.dept || '';
+  document.getElementById('idGroup').value = d.group || '';
+}
+function wrapCanvasText(ctx, text, maxWidth){
+  const lines = []; let line = '';
+  for(let i = 0; i < text.length; i++){
+    const test = line + text[i];
+    if(ctx.measureText(test).width > maxWidth && line){ lines.push(line); line = text[i]; }
+    else line = test;
+  }
+  if(line) lines.push(line);
+  return lines;
+}
+function downloadPracticeCertificate(){
+  if(!lastOutput.en && !lastOutput.zh){ alert('請先產生回覆'); return; }
+  const name = document.getElementById('idName').value.trim();
+  const sid = document.getElementById('idStudentId').value.trim();
+  const dept = document.getElementById('idDept').value.trim();
+  const group = document.getElementById('idGroup').value.trim();
+  const d = new Date();
+  const dateStr = d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0');
+
+  const W = 1000, H = 700;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#0f1115'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#FF9900'; ctx.lineWidth = 3; ctx.strokeRect(24, 24, W-48, H-48);
+  ctx.strokeStyle = 'rgba(255,153,0,0.35)'; ctx.lineWidth = 1; ctx.strokeRect(34, 34, W-68, H-68);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#FF9900';
+  ctx.font = 'bold 20px "Microsoft JhengHei", sans-serif';
+  ctx.fillText('PRACTICE CERTIFICATE', W/2, 90);
+  ctx.fillStyle = '#e8eaed';
+  ctx.font = 'bold 32px "Microsoft JhengHei", sans-serif';
+  ctx.fillText('練習證明', W/2, 138);
+  ctx.font = '17px "Microsoft JhengHei", sans-serif';
+  ctx.fillStyle = '#9aa1ac';
+  ctx.fillText('Amazon 客評/客訴回覆信產生器', W/2, 170);
+
+  ctx.strokeStyle = 'rgba(255,153,0,0.4)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(120, 196); ctx.lineTo(W-120, 196); ctx.stroke();
+
+  let y = 246; const lineH = 40;
+  ctx.font = '20px "Microsoft JhengHei", sans-serif';
+  function row(label, value){
+    ctx.textAlign = 'right'; ctx.fillStyle = '#6d7681';
+    ctx.fillText(label, W/2 - 16, y);
+    ctx.textAlign = 'left'; ctx.fillStyle = '#e8eaed';
+    ctx.fillText(value || '（未填寫）', W/2, y);
+    y += lineH;
+  }
+  row('姓名：', name); row('學號：', sid); row('系所：', dept); row('組別：', group);
+
+  y += 14;
+  ctx.textAlign = 'center';
+  ctx.font = '16px "Microsoft JhengHei", sans-serif';
+  ctx.fillStyle = '#9aa1ac';
+  const scenarioLabel = document.getElementById('scenario').selectedOptions[0].textContent;
+  const summary = '已完成「' + scenarioLabel + '」情境的回覆信產出練習';
+  wrapCanvasText(ctx, summary, W-200).forEach(ln=>{ ctx.fillText(ln, W/2, y); y += 26; });
+  y += 8;
+  ctx.fillText('產出日期：' + dateStr, W/2, y);
+
+  ctx.font = '12px "Microsoft JhengHei", sans-serif';
+  ctx.fillStyle = '#5c6169';
+  ctx.fillText('本證明由使用者自行下載，僅供課程練習存證使用，非官方發行文件', W/2, H-50);
+  ctx.fillText('Amazon 客評/客訴回覆信產生器 · Mark Tsai', W/2, H-30);
+
+  canvas.toBlob(blob=>{
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+    a.href = url; a.download = '練習證明_' + (name || '未填寫姓名') + '_' + stamp + '.png';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+}
+['idName','idStudentId','idDept','idGroup'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', saveIdentity);
+});
+restoreIdentity();
 </script>
 </body>
 </html>
