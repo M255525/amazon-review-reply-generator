@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amazon 客評/客訴回覆信產生器</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#181b22; --panel2:#1f232c; --border:#2b303b;
+    --amber:#FF9900; --amber-dark:#e08600; --text:#e8eaed; --sub:#9aa1ac;
+    --ok:#3ecf8e; --warn:#f5a623; --bad:#ff5c5c;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI","Microsoft JhengHei",sans-serif;}
+  header{background:linear-gradient(90deg,#131921,#232f3e);padding:18px 24px;border-bottom:3px solid var(--amber);position:sticky;top:0;z-index:20;}
+  header h1{margin:0;font-size:22px;}
+  header h1 span{color:var(--amber);}
+  header p{margin:4px 0 0;color:var(--sub);font-size:13px;}
+  #marquee{background:#000;color:var(--amber);font-size:12px;padding:4px 0;overflow:hidden;white-space:nowrap;}
+  #marquee span{display:inline-block;padding-left:100%;animation:scroll 25s linear infinite;}
+  @keyframes scroll{0%{transform:translateX(0);}100%{transform:translateX(-100%);}}
+  .wrap{max-width:1200px;margin:0 auto;padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  @media (max-width:900px){.wrap{grid-template-columns:1fr;}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;}
+  .card h2{margin:0 0 14px;font-size:16px;color:var(--amber);border-bottom:1px solid var(--border);padding-bottom:8px;}
+  label{display:block;font-size:13px;color:var(--sub);margin:12px 0 4px;}
+  select,textarea,input[type=text]{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-size:14px;font-family:inherit;}
+  textarea{min-height:90px;resize:vertical;}
+  .row{display:flex;gap:10px;}
+  .row>div{flex:1;}
+  button{cursor:pointer;border:none;border-radius:6px;font-weight:600;font-size:14px;padding:10px 16px;}
+  .btn-primary{background:var(--amber);color:#111;}
+  .btn-primary:hover{background:var(--amber-dark);}
+  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
+  .btn-ghost:hover{border-color:var(--amber);color:var(--amber);}
+  .btn-sm{padding:6px 10px;font-size:12px;}
+  .examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+  .actions{display:flex;gap:10px;margin-top:16px;}
+  .output-box{white-space:pre-wrap;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:14px;line-height:1.6;min-height:120px;}
+  .compliance{margin-top:14px;}
+  .compliance ul{list-style:none;padding:0;margin:0;font-size:13px;}
+  .compliance li{padding:6px 8px;border-radius:6px;margin-bottom:6px;display:flex;gap:8px;align-items:flex-start;}
+  .ok{background:rgba(62,207,142,.12);color:var(--ok);}
+  .warn{background:rgba(245,166,35,.14);color:var(--warn);}
+  .bad{background:rgba(255,92,92,.14);color:var(--bad);}
+  .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--panel2);border:1px solid var(--border);color:var(--sub);margin-left:6px;}
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;align-items:center;justify-content:center;}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px;width:400px;max-width:90vw;}
+  .modal h3{margin-top:0;}
+  .toplinks{display:flex;justify-content:flex-end;gap:10px;padding:10px 24px 0;}
+  .lang-tabs{display:flex;gap:6px;margin-bottom:8px;}
+  .lang-tabs button.active{background:var(--amber);color:#111;}
+  footer{text-align:center;color:var(--sub);font-size:12px;padding:30px 20px;}
+  .hint{font-size:12px;color:var(--sub);margin-top:6px;}
+</style>
+</head>
+<body>
+
+<div id="marquee"><span>⚠️ 本工具產出內容僅供草稿參考，正式送出前請自行核對事實與 Amazon 政策 ｜ 請勿在回覆中承諾以優惠換取修改評論（違反 Amazon Voice of Customer 政策）｜ 支援 Claude / OpenAI / Gemini / OpenRouter API 金鑰（選用，僅存於本機瀏覽器）</span></div>
+
+<header>
+  <h1>Amazon <span>客評 / 客訴回覆信</span> 產生器</h1>
+  <p>負評回覆・A-to-z 申訴・退貨請求・買家提問，一鍵生成符合 Amazon 政策的英中對照回覆草稿</p>
+</header>
+
+<div class="toplinks">
+  <button class="btn-ghost btn-sm" onclick="window.open('manual.html','_blank')">📖 操作手冊</button>
+  <button class="btn-ghost btn-sm" onclick="openSettings()">🔑 API 金鑰設定</button>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <h2>1. 輸入情境</h2>
+    <label>情境類型</label>
+    <select id="scenario">
+      <option value="negative_review">負評回覆（1-3星）</option>
+      <option value="positive_review">正評感謝回覆</option>
+      <option value="return_request">退貨/退款請求回覆</option>
+      <option value="atoz_claim">A-to-z Guarantee 申訴回覆</option>
+      <option value="buyer_question">買家提問回覆</option>
+      <option value="shipping_complaint">物流延誤客訴回覆</option>
+    </select>
+
+    <div class="row">
+      <div>
+        <label>商品名稱（選填）</label>
+        <input type="text" id="productName" placeholder="例：USB-C 快充行動電源 10000mAh">
+      </div>
+      <div>
+        <label>星等（若為評論類情境）</label>
+        <select id="stars">
+          <option value="">不適用</option>
+          <option value="1">★☆☆☆☆ 1星</option>
+          <option value="2">★★☆☆☆ 2星</option>
+          <option value="3">★★★☆☆ 3星</option>
+          <option value="4">★★★★☆ 4星</option>
+          <option value="5">★★★★★ 5星</option>
+        </select>
+      </div>
+    </div>
+
+    <label>顧客評論 / 訊息原文</label>
+    <textarea id="customerText" placeholder="貼上顧客的評論或客訴訊息原文…"></textarea>
+
+    <div class="row">
+      <div>
+        <label>語氣</label>
+        <select id="tone">
+          <option value="professional">專業正式</option>
+          <option value="warm">親切溫暖</option>
+          <option value="concise">簡潔有效率</option>
+        </select>
+      </div>
+      <div>
+        <label>輸出語言</label>
+        <select id="lang">
+          <option value="bilingual">英文為主＋中文對照（建議）</option>
+          <option value="en">純英文</option>
+          <option value="zh">純中文（後台內部溝通用）</option>
+        </select>
+      </div>
+    </div>
+
+    <label>額外補充（選填，例如已提供的補償方案、物流單號等）</label>
+    <textarea id="extra" style="min-height:50px;" placeholder="例：已協助申請全額退款，預計3個工作天入帳"></textarea>
+
+    <div class="examples" id="examples"></div>
+
+    <div class="actions">
+      <button class="btn-primary" onclick="generateReply()">✨ 產生回覆</button>
+      <button class="btn-ghost" onclick="clearForm()">清空</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2. 產出結果 <span class="badge" id="modeBadge">規則式範本</span></h2>
+    <div class="lang-tabs" id="langTabs" style="display:none;">
+      <button class="btn-ghost btn-sm active" data-tab="en" onclick="switchTab('en')">English</button>
+      <button class="btn-ghost btn-sm" data-tab="zh" onclick="switchTab('zh')">中文對照</button>
+    </div>
+    <div class="output-box" id="output">尚未產生內容。填好左側表單後按「產生回覆」。</div>
+    <div class="actions">
+      <button class="btn-ghost btn-sm" onclick="copyOutput()">📋 複製</button>
+      <button class="btn-ghost btn-sm" onclick="downloadOutput()">⬇ 下載 .txt</button>
+    </div>
+
+    <div class="compliance">
+      <h2 style="font-size:14px;">合規檢查（Amazon 政策）</h2>
+      <ul id="complianceList"><li class="ok">尚未檢查</li></ul>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <h3>API 金鑰設定（選用，BYOK）</h3>
+    <p class="hint">金鑰只會存在你的瀏覽器 localStorage，不會上傳到任何伺服器。留空則使用規則式範本產生回覆。</p>
+    <label>服務商</label>
+    <select id="provider">
+      <option value="">不使用 AI（僅規則式範本）</option>
+      <option value="anthropic">Claude (Anthropic)</option>
+      <option value="openai">OpenAI</option>
+      <option value="gemini">Google Gemini</option>
+      <option value="openrouter">OpenRouter</option>
+    </select>
+    <label>API 金鑰</label>
+    <input type="text" id="apiKey" placeholder="sk-...">
+    <label>模型名稱（選填，留空用預設）</label>
+    <input type="text" id="modelName" placeholder="例：claude-sonnet-5 / gpt-4o / gemini-2.5-flash">
+    <div class="actions">
+      <button class="btn-primary" onclick="saveSettings()">儲存</button>
+      <button class="btn-ghost" onclick="closeSettings()">取消</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Amazon 客評/客訴回覆信產生器 ｜ 僅供草稿輔助，正式回覆前請自行核對後再送出 ｜ by Mark
+</footer>
+
+<script>
+/* ---------------- 內建範例 ---------------- */
+const EXAMPLES = [
+  {
+    label:"1星負評-商品破損",
+    scenario:"negative_review", stars:"1", productName:"USB-C 快充行動電源 10000mAh",
+    customerText:"Product arrived with a cracked casing and it doesn't charge at all. Very disappointed, waste of money.",
+    tone:"warm", lang:"bilingual", extra:"已主動聯繫買家並提出免費更換新品"
+  },
+  {
+    label:"A-to-z申訴-未收到但已簽收",
+    scenario:"atoz_claim", stars:"", productName:"藍牙耳機 PowerBuds Pro",
+    customerText:"Buyer filed an A-to-z claim stating the package never arrived, but tracking shows it was delivered and signed for at the front desk.",
+    tone:"professional", lang:"bilingual", extra:"物流追蹤顯示已簽收，簽收人：Front Desk，簽收時間：3/12 14:22"
+  },
+  {
+    label:"5星好評-感謝回覆",
+    scenario:"positive_review", stars:"5", productName:"兒童防藍光眼鏡",
+    customerText:"Amazing quality and my kids love the color! Fast shipping too.",
+    tone:"warm", lang:"bilingual", extra:""
+  },
+  {
+    label:"退貨請求-尺寸不合",
+    scenario:"return_request", stars:"", productName:"瑜珈防滑墊 6mm",
+    customerText:"The mat is too thin for my needs, I'd like to return it for a refund.",
+    tone:"concise", lang:"bilingual", extra:"符合30天退貨政策，已提供免運退貨標籤"
+  },
+  {
+    label:"買家提問-相容性詢問",
+    scenario:"buyer_question", stars:"", productName:"車用手機支架 磁吸式",
+    customerText:"Does this fit an iPhone 16 Pro Max with a thick case on?",
+    tone:"professional", lang:"bilingual", extra:"支援厚度最大12mm的手機殼"
+  },
+  {
+    label:"物流延誤客訴",
+    scenario:"shipping_complaint", stars:"2", productName:"露營折疊桌",
+    customerText:"Order was supposed to arrive 5 days ago and still hasn't shown up. I needed it for a trip this weekend.",
+    tone:"warm", lang:"bilingual", extra:"已協助加開優先出貨並致贈下次購物85折優惠券（非用於換取評論修改）"
+  }
+];
+
+function renderExamples(){
+  const box = document.getElementById('examples');
+  box.innerHTML = EXAMPLES.map((ex,i)=>`<button class="btn-ghost btn-sm" onclick="loadExample(${i})">${ex.label}</button>`).join('');
+}
+function loadExample(i){
+  const ex = EXAMPLES[i];
+  document.getElementById('scenario').value = ex.scenario;
+  document.getElementById('stars').value = ex.stars;
+  document.getElementById('productName').value = ex.productName;
+  document.getElementById('customerText').value = ex.customerText;
+  document.getElementById('tone').value = ex.tone;
+  document.getElementById('lang').value = ex.lang;
+  document.getElementById('extra').value = ex.extra;
+}
+renderExamples();
+
+function clearForm(){
+  document.getElementById('customerText').value='';
+  document.getElementById('extra').value='';
+  document.getElementById('productName').value='';
+  document.getElementById('output').textContent = '尚未產生內容。填好左側表單後按「產生回覆」。';
+  document.getElementById('complianceList').innerHTML = '<li class="ok">尚未檢查</li>';
+  document.getElementById('langTabs').style.display='none';
+}
+
+/* ---------------- 設定 / BYOK ---------------- */
+function openSettings(){
+  const s = JSON.parse(localStorage.getItem('arrg_settings')||'{}');
+  document.getElementById('provider').value = s.provider||'';
+  document.getElementById('apiKey').value = s.apiKey||'';
+  document.getElementById('modelName').value = s.model||'';
+  document.getElementById('settingsModal').style.display='flex';
+}
+function closeSettings(){ document.getElementById('settingsModal').style.display='none'; }
+function saveSettings(){
+  const s = {
+    provider: document.getElementById('provider').value,
+    apiKey: document.getElementById('apiKey').value.trim(),
+    model: document.getElementById('modelName').value.trim()
+  };
+  localStorage.setItem('arrg_settings', JSON.stringify(s));
+  document.getElementById('modeBadge').textContent = (s.provider && s.apiKey) ? 'AI 優化模式' : '規則式範本';
+  closeSettings();
+}
+(function initBadge(){
+  const s = JSON.parse(localStorage.getItem('arrg_settings')||'{}');
+  document.getElementById('modeBadge').textContent = (s.provider && s.apiKey) ? 'AI 優化模式' : '規則式範本';
+})();
+
+/* ---------------- 規則式範本庫 ---------------- */
+const TEMPLATES = {
+  negative_review:{
+    en:(p)=>`Hi there, thank you for taking the time to share your feedback on ${p.productName||'our product'}. We're truly sorry to hear about your experience — this isn't the standard we hold ourselves to. ${p.extraEn} Please feel free to reach out to us through Amazon's messaging system so we can make this right for you. We appreciate the opportunity to improve.`,
+    zh:(p)=>`您好，感謝您撥空分享使用心得。得知您在使用${p.productName||'本商品'}時遇到的問題，我們深感抱歉，這並非我們期望帶給顧客的體驗。${p.extraZh}歡迎透過 Amazon 訊息系統與我們聯繫，我們會盡力協助處理。再次感謝您給我們改善的機會。`
+  },
+  positive_review:{
+    en:(p)=>`Thank you so much for the wonderful review of ${p.productName||'our product'}! We're delighted to hear it's working out great for you. Your support means a lot to our small team, and we hope to serve you again soon!`,
+    zh:(p)=>`非常感謝您給${p.productName||'本商品'}的好評！很高興聽到您使用愉快，您的支持對我們團隊意義重大，期待有機會再次為您服務！`
+  },
+  return_request:{
+    en:(p)=>`Hi, thank you for letting us know. We're sorry ${p.productName||'the item'} didn't work out for you. ${p.extraEn} Please initiate the return through your Amazon order page, and the refund will be processed automatically once the item is received. Let us know if you need any help along the way.`,
+    zh:(p)=>`您好，感謝您告知我們此狀況，很抱歉${p.productName||'商品'}未能符合您的需求。${p.extraZh}請透過您的 Amazon 訂單頁面申請退貨，商品送達後系統將自動處理退款。若過程中需要協助，歡迎隨時告知我們。`
+  },
+  atoz_claim:{
+    en:(p)=>`Hello, we understand you filed a claim regarding this order. We'd like to clarify that our shipping records show the package was delivered and signed for. ${p.extraEn} We're happy to share the tracking and delivery confirmation with Amazon to resolve this claim quickly and fairly. Please don't hesitate to reach out if there's anything else we can clarify.`,
+    zh:(p)=>`您好，我們了解您針對此訂單提出了申訴。經查我們的物流紀錄，該包裹確實已送達並完成簽收。${p.extraZh}我們樂於將物流追蹤與簽收證明提供給 Amazon，以協助盡快公平釐清此案。若您有任何需要說明之處，歡迎隨時與我們聯繫。`
+  },
+  buyer_question:{
+    en:(p)=>`Hi, thanks for your question about ${p.productName||'this product'}! ${p.extraEn} Please let us know if you have any other questions before your purchase — we're happy to help!`,
+    zh:(p)=>`您好，感謝您對${p.productName||'本商品'}提出的問題！${p.extraZh}若購買前還有其他疑問，歡迎隨時詢問我們！`
+  },
+  shipping_complaint:{
+    en:(p)=>`Hi, we sincerely apologize for the shipping delay on your order for ${p.productName||'this item'}. This falls short of what we aim to deliver. ${p.extraEn} We're following up with the carrier directly to prevent this from happening again, and we appreciate your patience.`,
+    zh:(p)=>`您好，對於${p.productName||'此商品'}訂單的物流延誤，我們深感抱歉，這並非我們期望帶給顧客的服務品質。${p.extraZh}我們會直接與物流商跟進以避免再次發生，非常感謝您的耐心與體諒。`
+  }
+};
+
+/* ---------------- 合規檢查（規則式，套用在最終輸出上） ---------------- */
+function complianceCheck(text){
+  const issues = [];
+  const lower = text.toLowerCase();
+
+  // 1. 以優惠換取修改/移除評論（違反 Amazon Voice of Customer 政策）
+  const reviewWords = /(change your review|update your rating|remove (your|the) review|edit your review|修改.{0,4}評論|移除.{0,4}評論|刪除.{0,4}評論|更改.{0,4}評分)/i;
+  const incentiveWords = /(refund|discount|coupon|gift card|free|折扣|優惠券|退款|贈送|禮品卡)/i;
+  if(reviewWords.test(lower) && incentiveWords.test(lower)){
+    issues.push({level:'bad', msg:'偵測到疑似「以優惠換取修改/移除評論」的字眼，這違反 Amazon Voice of Customer 政策，請務必修改此段落。'});
+  } else {
+    issues.push({level:'ok', msg:'未偵測到以優惠換取評論修改的違規字眼'});
+  }
+
+  // 2. 直接要求移除評論本身（即使無優惠也不建議）
+  if(/remove (your|the) review|please delete.{0,10}review|刪除.{0,4}評論|下架.{0,4}評論/i.test(lower)){
+    issues.push({level:'warn', msg:'內容包含直接要求買家「移除評論」的用語，建議避免，改為引導買家透過 Amazon 訊息聯繫。'});
+  }
+
+  // 3. 外部聯絡方式（email / 電話 / 網址）
+  if(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(text) || /https?:\/\//i.test(text) || /\b\d{2,4}[-\s]?\d{3,4}[-\s]?\d{3,4}\b/.test(text)){
+    issues.push({level:'warn', msg:'內容疑似包含外部聯絡方式（Email/電話/網址），Amazon 政策限制買賣雙方僅能透過站內訊息系統溝通，請確認是否必要。'});
+  } else {
+    issues.push({level:'ok', msg:'未偵測到外部聯絡方式'});
+  }
+
+  // 4. HTML標籤
+  if(/<[a-z][\s\S]*>/i.test(text)){
+    issues.push({level:'warn', msg:'內容包含 HTML 標籤，Amazon 通常不支援格式化標籤顯示，建議移除。'});
+  }
+
+  // 5. 長度提醒
+  if(text.length > 1000){
+    issues.push({level:'warn', msg:`內容長度 ${text.length} 字元偏長，建議精簡至 1000 字元內以維持易讀性。`});
+  } else {
+    issues.push({level:'ok', msg:`長度 ${text.length} 字元，長度合宜`});
+  }
+
+  // 6. 過度行銷用語（不適合出現在客服回覆）
+  if(/(buy now|limited time offer|best seller|立即購買|限時優惠|熱銷冠軍)/i.test(lower)){
+    issues.push({level:'warn', msg:'內容出現促銷宣傳用語，客服回覆情境不建議置入行銷字句，可能顯得不真誠。'});
+  }
+
+  return issues;
+}
+
+function renderCompliance(issues){
+  const ul = document.getElementById('complianceList');
+  ul.innerHTML = issues.map(it=>{
+    const icon = it.level==='ok' ? '✅' : (it.level==='warn' ? '⚠️' : '⛔');
+    return `<li class="${it.level}">${icon} ${it.msg}</li>`;
+  }).join('');
+}
+
+/* ---------------- 產生回覆 ---------------- */
+let lastOutput = {en:'', zh:''};
+
+async function generateReply(){
+  const scenario = document.getElementById('scenario').value;
+  const stars = document.getElementById('stars').value;
+  const productName = document.getElementById('productName').value.trim();
+  const customerText = document.getElementById('customerText').value.trim();
+  const tone = document.getElementById('tone').value;
+  const lang = document.getElementById('lang').value;
+  const extra = document.getElementById('extra').value.trim();
+
+  if(!customerText){
+    alert('請先貼上顧客的評論或訊息內容');
+    return;
+  }
+
+  const outBox = document.getElementById('output');
+  outBox.textContent = '產生中…';
+
+  const settings = JSON.parse(localStorage.getItem('arrg_settings')||'{}');
+  let en, zh;
+
+  if(settings.provider && settings.apiKey){
+    try{
+      const aiResult = await callLLM({scenario, stars, productName, customerText, tone, lang, extra}, settings);
+      en = aiResult.en; zh = aiResult.zh;
+    }catch(err){
+      outBox.textContent = 'AI 產生失敗，已改用規則式範本。錯誤：' + err.message;
+      const fb = ruleBasedReply({scenario, productName, extra});
+      en = fb.en; zh = fb.zh;
+    }
+  } else {
+    const fb = ruleBasedReply({scenario, productName, extra});
+    en = fb.en; zh = fb.zh;
+  }
+
+  lastOutput = {en, zh};
+
+  if(lang === 'zh'){
+    document.getElementById('langTabs').style.display='none';
+    outBox.textContent = zh;
+  } else if(lang === 'en'){
+    document.getElementById('langTabs').style.display='none';
+    outBox.textContent = en;
+  } else {
+    document.getElementById('langTabs').style.display='flex';
+    switchTab('en');
+  }
+
+  const checkText = (lang==='zh') ? zh : en;
+  renderCompliance(complianceCheck(checkText + '\n' + (lang==='bilingual'?zh:'')));
+}
+
+function switchTab(which){
+  document.querySelectorAll('#langTabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===which));
+  document.getElementById('output').textContent = which==='en' ? lastOutput.en : lastOutput.zh;
+}
+
+function ruleBasedReply({scenario, productName, extra}){
+  const t = TEMPLATES[scenario];
+  const extraEn = extra ? `We've already arranged: ${extra}. ` : '';
+  const extraZh = extra ? `我們已協助處理：${extra}。` : '';
+  return {
+    en: t.en({productName, extraEn}),
+    zh: t.zh({productName, extraZh})
+  };
+}
+
+/* ---------------- BYOK 多服務商呼叫 ---------------- */
+async function callLLM(input, settings){
+  const scenarioLabelMap = {
+    negative_review:'負評回覆(含星等)', positive_review:'正評感謝回覆', return_request:'退貨/退款請求回覆',
+    atoz_claim:'A-to-z Guarantee 申訴回覆', buyer_question:'買家提問回覆', shipping_complaint:'物流延誤客訴回覆'
+  };
+  const toneLabelMap = {professional:'專業正式', warm:'親切溫暖', concise:'簡潔有效率'};
+
+  const systemPrompt = `你是一位資深 Amazon 賣家客服專員，負責撰寫合規、專業且有溫度的顧客回覆。
+嚴格遵守以下 Amazon 政策，絕對不可違反：
+1. 絕對不能以任何優惠、折扣、退款、禮品卡等方式，換取顧客修改或移除評論（這違反 Amazon Voice of Customer 政策，會導致帳號被停權）。
+2. 不能直接要求顧客「移除」或「修改」評論本身。
+3. 不能在回覆中提供外部聯絡方式（個人 email、電話、非 Amazon 網址），所有溝通應引導至 Amazon 站內訊息系統。
+4. 語氣要展現真誠同理心，避免制式罐頭感，也避免過度促銷用語。
+5. 不能編造未經賣家確認的補償承諾（只根據使用者提供的「額外補充」資訊）。
+輸出格式：請只回傳 JSON，格式為 {"en": "英文回覆全文", "zh": "中文對照翻譯全文"}，不要加任何其他文字或 markdown 符號。`;
+
+  const userPrompt = `情境類型：${scenarioLabelMap[input.scenario]}
+${input.stars ? '星等：'+input.stars+'星' : ''}
+商品名稱：${input.productName || '（未提供）'}
+顧客原文：${input.customerText}
+語氣要求：${toneLabelMap[input.tone]}
+額外補充（已實際處理的事項，若有請自然帶入回覆）：${input.extra || '（無）'}`;
+
+  const text = await providerCall(settings, systemPrompt, userPrompt);
+  let cleaned = text.trim().replace(/^```json/i,'').replace(/^```/,'').replace(/```$/,'').trim();
+  let parsed;
+  try{ parsed = JSON.parse(cleaned); }
+  catch(e){ throw new Error('AI 回傳格式無法解析'); }
+  if(!parsed.en || !parsed.zh) throw new Error('AI 回傳缺少必要欄位');
+  return parsed;
+}
+
+async function providerCall(settings, systemPrompt, userPrompt){
+  const {provider, apiKey, model} = settings;
+
+  if(provider === 'anthropic'){
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body: JSON.stringify({
+        model: model || 'claude-sonnet-5',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages:[{role:'user', content:userPrompt}]
+      })
+    });
+    if(!res.ok) throw new Error('Anthropic API 錯誤 '+res.status);
+    const data = await res.json();
+    return data.content[0].text;
+  }
+
+  if(provider === 'openai'){
+    const res = await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+      body: JSON.stringify({
+        model: model || 'gpt-4o-mini',
+        messages:[{role:'system',content:systemPrompt},{role:'user',content:userPrompt}]
+      })
+    });
+    if(!res.ok) throw new Error('OpenAI API 錯誤 '+res.status);
+    const data = await res.json();
+    return data.choices[0].message.content;
+  }
+
+  if(provider === 'gemini'){
+    const m = model || 'gemini-2.5-flash';
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents:[{role:'user', parts:[{text: systemPrompt+'\n\n'+userPrompt}]}]
+      })
+    });
+    if(!res.ok) throw new Error('Gemini API 錯誤 '+res.status);
+    const data = await res.json();
+    return data.candidates[0].content.parts[0].text;
+  }
+
+  if(provider === 'openrouter'){
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+      body: JSON.stringify({
+        model: model || 'anthropic/claude-sonnet-5',
+        messages:[{role:'system',content:systemPrompt},{role:'user',content:userPrompt}]
+      })
+    });
+    if(!res.ok) throw new Error('OpenRouter API 錯誤 '+res.status);
+    const data = await res.json();
+    return data.choices[0].message.content;
+  }
+
+  throw new Error('未知的服務商');
+}
+
+/* ---------------- 複製 / 下載 ---------------- */
+function copyOutput(){
+  const text = document.getElementById('output').textContent;
+  navigator.clipboard.writeText(text).then(()=>alert('已複製到剪貼簿'));
+}
+function downloadOutput(){
+  const text = document.getElementById('output').textContent;
+  const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'amazon-reply.txt';
+  a.click();
+}
+</script>
+</body>
+</html>

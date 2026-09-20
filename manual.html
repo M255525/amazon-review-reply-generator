@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>操作手冊 - Amazon 客評/客訴回覆信產生器</title>
+<style>
+  body{font-family:"Segoe UI","Microsoft JhengHei",sans-serif;max-width:800px;margin:0 auto;padding:30px 20px;line-height:1.8;background:#0f1115;color:#e8eaed;}
+  h1{color:#FF9900;}
+  h2{color:#FF9900;border-bottom:1px solid #2b303b;padding-bottom:6px;margin-top:36px;}
+  code{background:#1f232c;padding:2px 6px;border-radius:4px;}
+  .warn{background:rgba(245,166,35,.14);border-left:4px solid #f5a623;padding:10px 14px;border-radius:6px;}
+  a{color:#FF9900;}
+</style>
+</head>
+<body>
+<h1>Amazon 客評/客訴回覆信產生器 — 操作手冊</h1>
+
+<h2>這是做什麼的？</h2>
+<p>貼上顧客的評論或客訴訊息，選擇情境類型與語氣，一鍵產生符合 Amazon 政策的英中對照回覆草稿，並自動檢查是否有違反 Amazon 政策的用語。</p>
+
+<h2>基本流程</h2>
+<ol>
+  <li>選擇「情境類型」（負評/正評/退貨/A-to-z申訴/買家提問/物流客訴）</li>
+  <li>貼上顧客原文，選填商品名稱、星等、語氣、輸出語言</li>
+  <li>若已實際處理過（例如已退款、已補寄），填入「額外補充」讓回覆更真實具體</li>
+  <li>按「產生回覆」，右側會顯示英文/中文回覆與合規檢查結果</li>
+  <li>檢查完畢後複製或下載 .txt，貼到 Amazon Seller Central 送出</li>
+</ol>
+
+<h2>要不要填 API 金鑰？</h2>
+<p>不填也能用——沒有金鑰時會用內建的規則式範本產生基本回覆架構。若想要更貼合實際內容、語氣更自然的回覆，可以在右上角「API 金鑰設定」填入 Claude / OpenAI / Gemini / OpenRouter 任一服務商的金鑰（只存在你瀏覽器本機，不會上傳）。</p>
+
+<h2>合規檢查在檢查什麼？</h2>
+<p>這是規則式檢查，套用在「最終產出的回覆內容」上，會偵測：</p>
+<ul>
+  <li>是否以優惠/退款換取顧客修改或移除評論（違反 Amazon Voice of Customer 政策，最嚴重會導致帳號停權）</li>
+  <li>是否直接要求顧客移除評論</li>
+  <li>是否包含外部聯絡方式（Email/電話/網址）</li>
+  <li>是否有 HTML 標籤、內容是否過長、是否有過度促銷用語</li>
+</ul>
+<div class="warn">⚠️ 即使使用 AI 優化模式，AI 產出的內容仍會再跑一次上述規則檢查，不會單純信任 AI 的判斷。但最終送出前，請務必自行再看過一次內容是否符合實際狀況。</div>
+
+<h2>免責提醒</h2>
+<p>本工具產出內容僅供草稿參考。Amazon 政策會不定期更新，正式送出前請自行確認最新版 <a href="https://sellercentral.amazon.com/" target="_blank">Amazon Seller Central</a> 規範，並核對內容是否符合實際處理狀況。</p>
+
+</body>
+</html>
