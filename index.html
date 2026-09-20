@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Amazon 客評/客訴回覆信產生器</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF9900">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Amazon回覆產生器">
 <style>
   :root{
     --bg:#0f1115; --panel:#181b22; --panel2:#1f232c; --border:#2b303b;
@@ -16,9 +23,24 @@
   header h1{margin:0;font-size:22px;}
   header h1 span{color:var(--amber);}
   header p{margin:4px 0 0;color:var(--sub);font-size:13px;}
-  #marquee{background:#000;color:var(--amber);font-size:12px;padding:4px 0;overflow:hidden;white-space:nowrap;}
-  #marquee span{display:inline-block;padding-left:100%;animation:scroll 25s linear infinite;}
-  @keyframes scroll{0%{transform:translateX(0);}100%{transform:translateX(-100%);}}
+
+  #marqueeBar{position:fixed;top:0;left:0;right:0;height:30px;background:#000;border-bottom:1px solid var(--border);z-index:2100;overflow:hidden;display:none;align-items:center;}
+  #marqueeBar.show{display:flex;}
+  #marqueeTrack{display:inline-block;white-space:nowrap;padding-left:100%;font-size:13px;font-weight:600;color:var(--amber);animation:marquee-scroll 30s linear infinite;}
+  body.has-marquee{padding-top:30px;}
+  body.has-marquee header{top:30px;}
+  @keyframes marquee-scroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+
+  .warn-box{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px 20px;font-size:12.5px;color:var(--sub);}
+  .warn-box strong{color:var(--text);display:block;margin-bottom:8px;font-size:13px;}
+  .warn-box ul{margin:0;padding-left:18px;line-height:1.8;}
+  .creator-box{font-size:12.5px;color:var(--sub);text-align:center;}
+  .creator-box a{color:var(--sub);}
+  .footer-meta{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--sub);}
+  .footer-link-btn{background:none;border:none;color:var(--sub);cursor:pointer;font-size:12px;font-family:inherit;padding:0;}
+  .footer-link-btn:hover{color:var(--amber);}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);background:var(--panel2);border:1px solid var(--amber);color:var(--text);padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:3000;}
+  .toast.show{opacity:1;transform:translate(-50%,0);}
   .wrap{max-width:1200px;margin:0 auto;padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:20px;}
   @media (max-width:900px){.wrap{grid-template-columns:1fr;}}
   .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;}
@@ -50,13 +72,13 @@
   .toplinks{display:flex;justify-content:flex-end;gap:10px;padding:10px 24px 0;}
   .lang-tabs{display:flex;gap:6px;margin-bottom:8px;}
   .lang-tabs button.active{background:var(--amber);color:#111;}
-  footer{text-align:center;color:var(--sub);font-size:12px;padding:30px 20px;}
+  footer{max-width:860px;margin:0 auto;padding:20px 20px 60px;display:flex;flex-direction:column;gap:16px;}
   .hint{font-size:12px;color:var(--sub);margin-top:6px;}
 </style>
 </head>
 <body>
 
-<div id="marquee"><span>⚠️ 本工具產出內容僅供草稿參考，正式送出前請自行核對事實與 Amazon 政策 ｜ 請勿在回覆中承諾以優惠換取修改評論（違反 Amazon Voice of Customer 政策）｜ 支援 Claude / OpenAI / Gemini / OpenRouter API 金鑰（選用，僅存於本機瀏覽器）</span></div>
+<div id="marqueeBar"><div id="marqueeTrack"></div></div>
 
 <header>
   <h1>Amazon <span>客評 / 客訴回覆信</span> 產生器</h1>
@@ -175,10 +197,149 @@
 </div>
 
 <footer>
-  Amazon 客評/客訴回覆信產生器 ｜ 僅供草稿輔助，正式回覆前請自行核對後再送出 ｜ by Mark
+  <div class="warn-box">
+    <strong>使用警語</strong>
+    <ul>
+      <li>本工具產出的回覆僅供草稿參考，不保證完全符合 Amazon 當下最新的政策規範，送出前請自行對照 Amazon Seller Central 正式規範逐項確認。</li>
+      <li>「合規檢查」只涵蓋常見的高風險類型（以優惠換取評論修改/移除、外部聯絡方式、宣傳用語等），不涵蓋 Amazon 全部政策，未被標示不代表一定合規。</li>
+      <li>請勿在任何欄位輸入真實顧客個資（姓名、地址、訂單號等機敏資訊）——欄位資料只存在你自己瀏覽器的 localStorage，不會上傳到任何伺服器。</li>
+      <li>填有 API 金鑰時會直接連線到你選擇的服務商，該金鑰只存在你的瀏覽器，本工具不會經手或保存金鑰，也不會向你收取任何 API 費用——實際費用依你與該服務商的方案計算。</li>
+      <li>AI 生成內容可能有誤，使用前請自行查證；本工具與創作者不對後續 AI 輸出結果或因此產生的帳號爭議負責。</li>
+      <li>僅供教學、課程及個人使用，禁止未經授權公開發布、販售或商業化使用。</li>
+    </ul>
+  </div>
+  <div class="creator-box">製作：<strong>Mark Tsai（蔡豐全）</strong>｜<a href="mailto:tsaimark@gmail.com">tsaimark@gmail.com</a>｜完整經歷見<a href="manual.html">操作手冊</a></div>
+  <div class="footer-meta">
+    <span>© 2026 Amazon 客評/客訴回覆信產生器</span>
+    <img src="https://visitor-badge.laobi.icu/badge?page_id=m255525.amazon-review-reply-generator" alt="訪客次數" style="vertical-align:middle;height:20px;">
+    <button type="button" id="installBtn" class="footer-link-btn">📲 加入主畫面</button>
+    <a href="manual.html">操作手冊 →</a>
+  </div>
 </footer>
 
+<div class="toast" id="toast" role="status"></div>
+
 <script>
+/* ================= 頂部跑馬燈（獨立運作；共用工作區既有的公告 Google Sheet） ================= */
+(function () {
+  'use strict';
+  var MARQUEE_CHECK_URL = "https://script.google.com/macros/s/AKfycbwKX0DNNbY8y4nf90BFTHtxgfqJcHHcZasRrgycl4QAe52_hkjMWSkYk4xOsqU-JPCROw/exec";
+  var STORAGE_KEY = 'arrgMarquee';
+  var REFRESH_MS = 20 * 60 * 1000;
+
+  var bar = document.getElementById('marqueeBar');
+  var track = document.getElementById('marqueeTrack');
+  var lastKey = null;
+
+  function loadCache() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function saveCache(items) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch (e) {}
+  }
+  function appendParsedText(container, text) {
+    var re = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+    var lastIndex = 0, m;
+    while ((m = re.exec(text))) {
+      if (m.index > lastIndex) container.appendChild(document.createTextNode(text.slice(lastIndex, m.index)));
+      var a = document.createElement('a');
+      a.href = m[2]; a.textContent = m[1]; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      a.style.color = 'inherit'; a.style.textDecoration = 'underline';
+      container.appendChild(a);
+      lastIndex = re.lastIndex;
+    }
+    if (lastIndex < text.length) container.appendChild(document.createTextNode(text.slice(lastIndex)));
+  }
+  function buildTrackContent(items) {
+    var frag = document.createDocumentFragment();
+    function appendPass() {
+      items.forEach(function (item, idx) {
+        if (idx > 0) frag.appendChild(document.createTextNode('　★　'));
+        appendParsedText(frag, item);
+      });
+    }
+    appendPass();
+    frag.appendChild(document.createTextNode('　★　'));
+    appendPass();
+    return frag;
+  }
+  function render(items) {
+    if (!items || !items.length) return;
+    var key = JSON.stringify(items);
+    if (key === lastKey) return;
+    lastKey = key;
+    track.innerHTML = '';
+    track.appendChild(buildTrackContent(items));
+    bar.classList.add('show');
+    document.body.classList.add('has-marquee');
+    var width = track.scrollWidth / 2;
+    track.style.animationDuration = Math.max(width / 80, 10) + 's';
+  }
+  function fetchMarquee() {
+    fetch(MARQUEE_CHECK_URL, { method: 'POST', body: JSON.stringify({ serial: '' }) })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && Array.isArray(data.marquee) && data.marquee.length) {
+          saveCache(data.marquee);
+          render(data.marquee);
+        }
+      })
+      .catch(function () {});
+  }
+
+  render(loadCache());
+  fetchMarquee();
+  setInterval(fetchMarquee, REFRESH_MS);
+})();
+
+/* ================= PWA 加入主畫面（獨立運作） ================= */
+(function () {
+  'use strict';
+  var deferredPrompt = null;
+  var btn = document.getElementById('installBtn');
+  var ua = navigator.userAgent || '';
+  var isIOSDevice = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var isMacDesktop = /Macintosh/.test(ua) && !isIOSDevice;
+  var isSafariEngine = /^((?!chrome|crios|fxios|edgios|android).)*safari/i.test(ua);
+  var isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+
+  function fallbackMessage() {
+    if (isIOSDevice) return '請點畫面上的「分享」圖示，選「加入主畫面」';
+    if (isMacDesktop && isSafariEngine) return '請用選單列「檔案」→「加入 Dock」（Safari 17 以上）';
+    return '目前瀏覽器不支援安裝，或已安裝過';
+  }
+  function notify(msg) {
+    var t = document.getElementById('toast');
+    if (!t) { window.alert(msg); return; }
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(notify._timer);
+    notify._timer = setTimeout(function () { t.classList.remove('show'); }, 2400);
+  }
+
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferredPrompt = e; });
+  window.addEventListener('appinstalled', function () { deferredPrompt = null; });
+
+  if (btn) {
+    if (isStandalone) {
+      btn.style.display = 'none';
+    } else {
+      btn.addEventListener('click', function () {
+        if (!deferredPrompt) { notify(fallbackMessage()); return; }
+        try {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then(function () { deferredPrompt = null; });
+        } catch (e) { notify(fallbackMessage()); }
+      });
+    }
+  }
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('service-worker.js').catch(function () {});
+    });
+  }
+})();
+
 /* ---------------- 內建範例 ---------------- */
 const EXAMPLES = [
   {

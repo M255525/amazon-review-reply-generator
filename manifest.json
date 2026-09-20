@@ -1,0 +1,16 @@
+{
+  "name": "Amazon 客評/客訴回覆信產生器",
+  "short_name": "Amazon回覆產生器",
+  "description": "貼上顧客評論/客訴訊息→產生符合Amazon政策的英中對照回覆草稿",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f1115",
+  "theme_color": "#FF9900",
+  "lang": "zh-TW",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
